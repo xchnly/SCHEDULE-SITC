@@ -1836,7 +1836,7 @@ export default function Home() {
               <div className="flex items-center gap-4 mb-4">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-blue-800 shadow-lg">
                   <Image
-                    src="/sitcpng.png"
+                    src="/SITCPNG.png"
                     alt="SITC"
                     width={32}
                     height={32}
