@@ -742,102 +742,164 @@ export default function Home() {
   // =========================
   async function exportToExcel() {
     setIsExporting(true);
-    
+
     try {
       // 1. Create workbook
       const wb = XLSX.utils.book_new();
-      
+
       // 2. Prepare data arrays
       const data = [];
-      
+
       // 3. Add header rows
       // Row 1: Empty row for spacing
       data.push([]);
-      
+
       // Row 2: Company name
-      data.push(['新海丰集装箱运输有限公司', '', '', '', '', '', '', '', '', '', '', '']);
-      
+      data.push([
+        "新海丰集装箱运输有限公司",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+      ]);
+
       // Row 3: English company name
-      data.push(['SITC CONTAINER LINES CO., LTD.', '', '', '', '', '', '', '', '', '', '', '']);
-      
+      data.push([
+        "SITC CONTAINER LINES CO., LTD.",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+      ]);
+
       // Row 4: Title with week/year
-      data.push([`SITC Batam Schedule - Week ${week}, ${year}`, '', '', '', '', '', '', '', '', '', '', '']);
-      
+      data.push([
+        `SITC Batam Schedule - Week ${week}, ${year}`,
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+      ]);
+
       // Row 5: Generated date
-      data.push([`Generated on: ${new Date().toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      })}`, '', '', '', '', '', '', '', '', '', '', '']);
-      
+      data.push([
+        `Generated on: ${new Date().toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })}`,
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+      ]);
+
       // Row 6: Empty row
       data.push([]);
-      
+
       // 4. Add data headers
-      const headers = ['Group', 'Service', 'Vessel', 'Voyage', 'Connecting Vessel', 'Connecting Voyage'];
-      
+      const headers = [
+        "Group",
+        "Service",
+        "Vessel",
+        "Voyage",
+        "Connecting Vessel",
+        "Connecting Voyage",
+      ];
+
       // Add port headers
       const allPorts = Array.from(portsByService.values()).flat();
-      const uniquePorts = Array.from(new Set(allPorts.map(p => `${p.port_name} ${p.event_type}`)));
-      
+      const uniquePorts = Array.from(
+        new Set(allPorts.map((p) => `${p.port_name} ${p.event_type}`)),
+      );
+
       headers.push(...uniquePorts);
       data.push(headers);
-      
+
       // 5. Add data rows
-      filteredGroups.forEach(group => {
+      filteredGroups.forEach((group) => {
         const groupServices = servicesByGroup.get(group.id) || [];
-        
-        groupServices.forEach(service => {
+
+        groupServices.forEach((service) => {
           const serviceSailings = sailingsByService.get(service.id) || [];
           const servicePorts = portsByService.get(service.id) || [];
-          
-          serviceSailings.forEach(sailing => {
+
+          serviceSailings.forEach((sailing) => {
             const row = [
               group.name,
               service.name,
               sailing.vessel,
               sailing.voyage,
-              sailing.connecting_vessel || '',
-              sailing.connecting_voyage || ''
+              sailing.connecting_vessel || "",
+              sailing.connecting_voyage || "",
             ];
-            
+
             // Add dates for each port
-            uniquePorts.forEach(portHeader => {
-              const [portName, eventType] = portHeader.split(' ');
-              const port = servicePorts.find(p => 
-                p.port_name.toUpperCase() === portName.toUpperCase() && 
-                p.event_type === eventType
+            uniquePorts.forEach((portHeader) => {
+              const [portName, eventType] = portHeader.split(" ");
+              const port = servicePorts.find(
+                (p) =>
+                  p.port_name.toUpperCase() === portName.toUpperCase() &&
+                  p.event_type === eventType,
               );
-              
+
               if (port) {
                 const dateValue = getDateValue(sailing.id, port.id);
-                row.push(dateValue ? formatDateForExcel(dateValue) : 'TBA');
+                row.push(dateValue ? formatDateForExcel(dateValue) : "TBA");
               } else {
-                row.push('-');
+                row.push("-");
               }
             });
-            
+
             data.push(row);
           });
-          
+
           // Add empty row between services if there are vessels
           if (serviceSailings.length > 0) {
-            data.push(Array(headers.length).fill(''));
+            data.push(Array(headers.length).fill(""));
           }
         });
-        
+
         // Add separator row between groups
         if (groupServices.length > 0) {
-          data.push(Array(headers.length).fill('---'));
+          data.push(Array(headers.length).fill("---"));
           data.push([]);
         }
       });
-      
+
       // 6. Create worksheet
       const ws = XLSX.utils.aoa_to_sheet(data);
-      
+
       // 7. Style the worksheet
       // Set column widths
       const colWidths = [
@@ -848,35 +910,34 @@ export default function Home() {
         { wch: 20 }, // Connecting Vessel
         { wch: 15 }, // Connecting Voyage
       ];
-      
+
       // Add widths for port columns
       uniquePorts.forEach(() => {
         colWidths.push({ wch: 18 });
       });
-      
-      ws['!cols'] = colWidths;
-      
+
+      ws["!cols"] = colWidths;
+
       // Merge cells for headers
-      if (!ws['!merges']) ws['!merges'] = [];
-      
+      if (!ws["!merges"]) ws["!merges"] = [];
+
       // Merge company name cells (row 2, columns A-L)
-      ws['!merges'].push({ s: { r: 1, c: 0 }, e: { r: 1, c: 11 } });
+      ws["!merges"].push({ s: { r: 1, c: 0 }, e: { r: 1, c: 11 } });
       // Merge English name cells (row 3, columns A-L)
-      ws['!merges'].push({ s: { r: 2, c: 0 }, e: { r: 2, c: 11 } });
+      ws["!merges"].push({ s: { r: 2, c: 0 }, e: { r: 2, c: 11 } });
       // Merge title cells (row 4, columns A-L)
-      ws['!merges'].push({ s: { r: 3, c: 0 }, e: { r: 3, c: 11 } });
+      ws["!merges"].push({ s: { r: 3, c: 0 }, e: { r: 3, c: 11 } });
       // Merge generated date cells (row 5, columns A-L)
-      ws['!merges'].push({ s: { r: 4, c: 0 }, e: { r: 4, c: 11 } });
-      
+      ws["!merges"].push({ s: { r: 4, c: 0 }, e: { r: 4, c: 11 } });
+
       // 8. Add worksheet to workbook
       XLSX.utils.book_append_sheet(wb, ws, `Week ${week} ${year}`);
-      
+
       // 9. Generate and download
-      const fileName = `SITC_Batam_Schedule_Week${week}_${year}_${new Date().toISOString().split('T')[0]}.xlsx`;
+      const fileName = `SITC_Batam_Schedule_Week${week}_${year}_${new Date().toISOString().split("T")[0]}.xlsx`;
       XLSX.writeFile(wb, fileName);
-      
+
       showAlert(`✅ Excel file "${fileName}" downloaded successfully!`);
-      
     } catch (error) {
       console.error("Error exporting to Excel:", error);
       showAlert(`Error exporting to Excel: ${(error as Error).message}`);
@@ -1712,7 +1773,7 @@ export default function Home() {
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-blue-800 shadow-md">
                     <Image
-                      src="/sitcpng.png"
+                      src="/SITCPNG.png"
                       alt="SITC"
                       width={20}
                       height={20}
@@ -2148,7 +2209,8 @@ export default function Home() {
                               portsByService.get(service.id) || [];
                             const serviceSailings =
                               sailingsByService.get(service.id) || [];
-                            const isServiceOpen = openServiceIds[service.id] || false;
+                            const isServiceOpen =
+                              openServiceIds[service.id] || false;
 
                             return (
                               <div
@@ -2717,6 +2779,55 @@ export default function Home() {
                                             )}
                                           </tbody>
                                         </table>
+                                        <div className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
+                                          <div className="flex flex-col gap-3">
+                                            <div className="flex items-center gap-2">
+                                              <div className="h-9 w-9 rounded-xl bg-blue-50 flex items-center justify-center">
+                                                <span className="text-blue-600 text-lg">
+                                                  📩
+                                                </span>
+                                              </div>
+
+                                              <div className="flex flex-col">
+                                                <span className="text-blue-700 font-semibold text-sm">
+                                                  For Booking & Inquiries
+                                                </span>
+                                                <span className="text-slate-500 text-xs">
+                                                  Please contact our Batam
+                                                  Branch
+                                                </span>
+                                              </div>
+                                            </div>
+
+                                            <div className="rounded-xl bg-blue-50/60 p-3 border border-blue-100">
+                                              <span className="text-blue-700 font-semibold text-sm">
+                                                SITC Batam Branch
+                                              </span>
+
+                                              <div className="mt-2 flex flex-col gap-2">
+                                                <div className="rounded-xl bg-white p-3 border border-slate-100 hover:border-blue-200 hover:shadow-sm transition">
+                                                  <p className="text-slate-800 text-sm font-medium">
+                                                    Meyfenia R
+                                                  </p>
+                                                  <p className="text-slate-500 text-xs mt-0.5">
+                                                    +62 822 2664 5667 •
+                                                    mey@sitc.co.id
+                                                  </p>
+                                                </div>
+
+                                                <div className="rounded-xl bg-white p-3 border border-slate-100 hover:border-blue-200 hover:shadow-sm transition">
+                                                  <p className="text-slate-800 text-sm font-medium">
+                                                    Eka Widyatama
+                                                  </p>
+                                                  <p className="text-slate-500 text-xs mt-0.5">
+                                                    +628-571-8086-854 •
+                                                    eka@sitc.co.id
+                                                  </p>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
                                       </div>
 
                                       {tableContainerRef.current &&
@@ -2798,7 +2909,7 @@ export default function Home() {
         <div className="mt-8 text-center print-footer">
           <div className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-50 to-blue-100 px-4 py-3">
             <Image
-              src="/sitcpng.png"
+              src="/SITCPNG.png"
               alt="SITC"
               width={20}
               height={20}
@@ -3132,7 +3243,8 @@ export default function Home() {
                     style={{ backgroundColor: color }}
                   />
                 ),
-              )}；
+              )}
+              ；
               <input
                 type="color"
                 value={addServiceForm.color_code}
