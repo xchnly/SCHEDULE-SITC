@@ -738,118 +738,127 @@ export default function Home() {
   }
 
   // =========================
-  // EXPORT TO EXCEL FUNCTION WITH HEADER
+  // EXPORT TO EXCEL FUNCTION - ONE SHEET PER GROUP
   // =========================
-  async function exportToExcel() {
+  async function exportToExcelPerGroup() {
     setIsExporting(true);
 
     try {
       // 1. Create workbook
       const wb = XLSX.utils.book_new();
 
-      // 2. Prepare data arrays
-      const data = [];
-
-      // 3. Add header rows
-      // Row 1: Empty row for spacing
-      data.push([]);
-
-      // Row 2: Company name
-      data.push([
-        "新海丰集装箱运输有限公司",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-      ]);
-
-      // Row 3: English company name
-      data.push([
-        "SITC CONTAINER LINES CO., LTD.",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-      ]);
-
-      // Row 4: Title with week/year
-      data.push([
-        `SITC Batam Schedule - Week ${week}, ${year}`,
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-      ]);
-
-      // Row 5: Generated date
-      data.push([
-        `Generated on: ${new Date().toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-        })}`,
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-      ]);
-
-      // Row 6: Empty row
-      data.push([]);
-
-      // 4. Add data headers
-      const headers = [
-        "Group",
-        "Service",
-        "Vessel",
-        "Voyage",
-        "Connecting Vessel",
-        "Connecting Voyage",
-      ];
-
-      // Add port headers
-      const allPorts = Array.from(portsByService.values()).flat();
-      const uniquePorts = Array.from(
-        new Set(allPorts.map((p) => `${p.port_name} ${p.event_type}`)),
-      );
-
-      headers.push(...uniquePorts);
-      data.push(headers);
-
-      // 5. Add data rows
+      // 2. Process each group
       filteredGroups.forEach((group) => {
         const groupServices = servicesByGroup.get(group.id) || [];
+        if (groupServices.length === 0) return;
 
+        const allData = [];
+
+        // Header rows for this group sheet
+        // Row 1: Empty row for spacing
+        allData.push([]);
+
+        // Row 2: Company name
+        allData.push([
+          "新海丰集装箱运输有限公司",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+        ]);
+
+        // Row 3: English company name
+        allData.push([
+          "SITC CONTAINER LINES CO., LTD.",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+        ]);
+
+        // Row 4: Title with group name, week, year
+        allData.push([
+          `SITC Batam Schedule - ${group.name} - Week ${week}, ${year}`,
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+        ]);
+
+        // Row 5: Generated date
+        allData.push([
+          `Generated on: ${new Date().toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          })}`,
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+        ]);
+
+        // Row 6: Empty row
+        allData.push([]);
+
+        // 7. Collect all unique ports for this group
+        const groupPorts = new Map<string, ServicePort>();
+        const groupPortHeaders: string[] = [];
+
+        groupServices.forEach((service) => {
+          const servicePorts = portsByService.get(service.id) || [];
+          servicePorts.forEach((port) => {
+            const portKey = `${port.port_name} ${port.event_type}`;
+            if (!groupPorts.has(portKey)) {
+              groupPorts.set(portKey, port);
+              groupPortHeaders.push(portKey);
+            }
+          });
+        });
+
+        // 8. Add data headers
+        const headers = [
+          "Group",
+          "Service",
+          "Vessel",
+          "Voyage",
+          "Connecting Vessel",
+          "Connecting Voyage",
+          ...groupPortHeaders,
+        ];
+        allData.push(headers);
+
+        // 9. Add data rows for each service in this group
         groupServices.forEach((service) => {
           const serviceSailings = sailingsByService.get(service.id) || [];
           const servicePorts = portsByService.get(service.id) || [];
@@ -864,8 +873,8 @@ export default function Home() {
               sailing.connecting_voyage || "",
             ];
 
-            // Add dates for each port
-            uniquePorts.forEach((portHeader) => {
+            // Add dates for each port in the group
+            groupPortHeaders.forEach((portHeader) => {
               const [portName, eventType] = portHeader.split(" ");
               const port = servicePorts.find(
                 (p) =>
@@ -881,63 +890,61 @@ export default function Home() {
               }
             });
 
-            data.push(row);
+            allData.push(row);
           });
 
           // Add empty row between services if there are vessels
           if (serviceSailings.length > 0) {
-            data.push(Array(headers.length).fill(""));
+            allData.push(Array(headers.length).fill(""));
           }
         });
 
-        // Add separator row between groups
-        if (groupServices.length > 0) {
-          data.push(Array(headers.length).fill("---"));
-          data.push([]);
-        }
+        // 10. Create worksheet for this group
+        const ws = XLSX.utils.aoa_to_sheet(allData);
+
+        // 11. Style the worksheet
+        const colWidths = [
+          { wch: 20 }, // Group
+          { wch: 30 }, // Service
+          { wch: 20 }, // Vessel
+          { wch: 12 }, // Voyage
+          { wch: 20 }, // Connecting Vessel
+          { wch: 15 }, // Connecting Voyage
+        ];
+
+        // Add widths for port columns
+        groupPortHeaders.forEach(() => {
+          colWidths.push({ wch: 18 });
+        });
+
+        ws["!cols"] = colWidths;
+
+        // Merge cells for headers
+        if (!ws["!merges"]) ws["!merges"] = [];
+
+        // Merge company name cells (row 2, columns A-L)
+        ws["!merges"].push({ s: { r: 1, c: 0 }, e: { r: 1, c: 11 } });
+        // Merge English name cells (row 3, columns A-L)
+        ws["!merges"].push({ s: { r: 2, c: 0 }, e: { r: 2, c: 11 } });
+        // Merge title cells (row 4, columns A-L)
+        ws["!merges"].push({ s: { r: 3, c: 0 }, e: { r: 3, c: 11 } });
+        // Merge generated date cells (row 5, columns A-L)
+        ws["!merges"].push({ s: { r: 4, c: 0 }, e: { r: 4, c: 11 } });
+
+        // 12. Add worksheet to workbook with group name as sheet name
+        const safeSheetName = group.name
+          .substring(0, 31)
+          .replace(/[\\/*[\]:?]/g, "_");
+        XLSX.utils.book_append_sheet(wb, ws, safeSheetName);
       });
 
-      // 6. Create worksheet
-      const ws = XLSX.utils.aoa_to_sheet(data);
-
-      // 7. Style the worksheet
-      // Set column widths
-      const colWidths = [
-        { wch: 20 }, // Group
-        { wch: 30 }, // Service
-        { wch: 20 }, // Vessel
-        { wch: 12 }, // Voyage
-        { wch: 20 }, // Connecting Vessel
-        { wch: 15 }, // Connecting Voyage
-      ];
-
-      // Add widths for port columns
-      uniquePorts.forEach(() => {
-        colWidths.push({ wch: 18 });
-      });
-
-      ws["!cols"] = colWidths;
-
-      // Merge cells for headers
-      if (!ws["!merges"]) ws["!merges"] = [];
-
-      // Merge company name cells (row 2, columns A-L)
-      ws["!merges"].push({ s: { r: 1, c: 0 }, e: { r: 1, c: 11 } });
-      // Merge English name cells (row 3, columns A-L)
-      ws["!merges"].push({ s: { r: 2, c: 0 }, e: { r: 2, c: 11 } });
-      // Merge title cells (row 4, columns A-L)
-      ws["!merges"].push({ s: { r: 3, c: 0 }, e: { r: 3, c: 11 } });
-      // Merge generated date cells (row 5, columns A-L)
-      ws["!merges"].push({ s: { r: 4, c: 0 }, e: { r: 4, c: 11 } });
-
-      // 8. Add worksheet to workbook
-      XLSX.utils.book_append_sheet(wb, ws, `Week ${week} ${year}`);
-
-      // 9. Generate and download
+      // 13. Generate and download
       const fileName = `SITC_Batam_Schedule_Week${week}_${year}_${new Date().toISOString().split("T")[0]}.xlsx`;
       XLSX.writeFile(wb, fileName);
 
-      showAlert(`✅ Excel file "${fileName}" downloaded successfully!`);
+      showAlert(
+        `✅ Excel file "${fileName}" downloaded with ${filteredGroups.length} sheets!`,
+      );
     } catch (error) {
       console.error("Error exporting to Excel:", error);
       showAlert(`Error exporting to Excel: ${(error as Error).message}`);
@@ -1869,7 +1876,7 @@ export default function Home() {
 
                   {/* Export to Excel Button */}
                   <button
-                    onClick={exportToExcel}
+                    onClick={exportToExcelPerGroup} // Ganti dengan fungsi baru
                     disabled={isExporting}
                     className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-green-600 to-green-700 px-4 py-2.5 text-sm font-semibold text-white shadow-lg hover:from-green-700 hover:to-green-800 disabled:opacity-50"
                   >
@@ -1881,7 +1888,7 @@ export default function Home() {
                     ) : (
                       <>
                         <FileSpreadsheet className="h-4 w-4" />
-                        Export to Excel
+                        Export Excel (Per Group)
                       </>
                     )}
                   </button>
@@ -1907,6 +1914,18 @@ export default function Home() {
                         Short View
                       </>
                     )}
+                  </button>
+
+                  {/* PDF Button - Baru ditambahkan */}
+                  <button
+                    onClick={() =>
+                      window.open("/YRZ_PRD_AND_TH_PORT.pdf", "_blank")
+                    }
+                    className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-red-600 to-red-700 px-4 py-2.5 text-sm font-semibold text-white shadow-lg hover:from-red-700 hover:to-red-800"
+                    title="Open YRZ PRD AND TH PORT PDF"
+                  >
+                    <FileUp className="h-4 w-4" />
+                    YRZ PRD & TH PORT PDF
                   </button>
                 </div>
 
