@@ -587,9 +587,6 @@ export default function Home() {
                       File Name
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-blue-900 uppercase tracking-wider">
-                      Size
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-blue-900 uppercase tracking-wider">
                       Uploaded
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-blue-900 uppercase tracking-wider">
@@ -621,9 +618,6 @@ export default function Home() {
                             {file.file_name}
                           </span>
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-700">
-                        {file.file_size ? formatFileSize(file.file_size) : "N/A"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-1 text-sm text-blue-700">
